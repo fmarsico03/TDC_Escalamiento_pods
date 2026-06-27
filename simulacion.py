@@ -22,8 +22,8 @@ import control as model
 
 # --- Constantes de interfaz ---
 SCAN_MS = 50                # cada cuánto refresca la pantalla (ms)
-STEPS_PER_FRAME = 2         # pasos de simulación por refresco (acelera la vista)
-VISIBLE_SECONDS = 45        # ventana temporal visible en los gráficos
+STEPS_PER_FRAME = 5         # pasos de simulación por refresco (acelera la vista)
+VISIBLE_SECONDS = 300       # ventana temporal visible (5τ = 300s para ver el transitorio completo)
 
 
 class SliderConfig:
@@ -37,10 +37,10 @@ class SliderConfig:
         self.widget = None
 
 
-KP_CONFIG = SliderConfig("Kp", 0.0, 3.0, 0.4)
-KI_CONFIG = SliderConfig("Ki", 0.0, 1.5, 0.15)
+KP_CONFIG = SliderConfig("Kp", 0.0, 0.5, 0.1)
+KI_CONFIG = SliderConfig("Ki", 0.0, 0.1, 0.025)
 REF_CONFIG = SliderConfig("Referencia (ms)", 100.0, 400.0, 200.0, fmt="{:.0f}")
-LOAD_CONFIG = SliderConfig("Carga (req/s)", 0.0, 60.0, 0.0, fmt="{:.0f}")
+LOAD_CONFIG = SliderConfig("Carga (req/s)", 0.0, 300.0, 0.0, fmt="{:.0f}")
 
 
 class App(ctk.CTk):

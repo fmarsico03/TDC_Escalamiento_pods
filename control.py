@@ -28,19 +28,19 @@ from utils import clamp
 DT = 0.1                    # (s)  paso de tiempo virtual por ciclo
 
 ## Proceso (microservicio)
-# tau = t_scrape + t_reconcile + t_coldstart. Valor reducido para la simulación.
-TAU = 8.0                   # (s)  constante de tiempo del proceso
+# tau = t_scrape + t_reconcile + t_coldstart = 15 + 15 + 30 = 60s
+TAU = 60.0                  # (s)  constante de tiempo del proceso
 L0 = 200.0                  # (ms) latencia base con pods nominales y sin carga extra
-K = 10.0                    # (ms / pod-equiv) ganancia de proceso (magnitud, acción inversa)
-KD = 1.5                    # (ms por unidad de carga) ganancia de la perturbación
+K = 10.0                    # (ms/pod) ganancia estática del proceso (acción inversa)
+KD = 0.5                    # (ms·s/req) ganancia de la perturbación
 
 ## Actuador (Kubernetes)
 POD_BASELINE = 4            # réplicas en el punto de operación (u = 0)
 POD_MIN = 1                 # mínimo de réplicas
-POD_MAX = 30               # máximo de réplicas (saturación del actuador)
+POD_MAX = 50                # máximo de réplicas (saturación del actuador)
 
 ## Banda objetivo / condición de falla
-TARGET_BAND = 10.0          # (ms) tolerancia +/- alrededor de L_ref
+TARGET_BAND = 30.0          # (ms) tolerancia +/- alrededor de L_ref
 
 ## Historia (buffer de ploteo)
 POINTS_OF_HISTORY = 2000
