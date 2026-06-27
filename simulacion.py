@@ -2,10 +2,6 @@
 Simulación interactiva del lazo de control de latencia de un microservicio
 mediante escalado automático de réplicas (modelo del HPA de Kubernetes).
 
-Ejecutar:
-    pip install -r requirements.txt
-    python simulacion.py
-
 Controles:
     - Sliders: Kp, Ki, Referencia (latencia objetivo) y Carga (perturbación).
     - Botones: Escalón de carga, Pausa/Reanudar, Reset, Cerrar.
