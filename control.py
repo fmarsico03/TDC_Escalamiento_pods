@@ -11,11 +11,6 @@ Mapeo con el documento del TFI:
     - Actuador A(s)       : Kubernetes, ganancia pura Ka = 1
     - Proceso G(s)        : 1er orden, tau*dL/dt + L = L0 + K*u + Kd*d
     - Sensor H(s)         : Prometheus, ideal (H = 1)
-
-ACCIÓN INVERSA:
-    Más pods  =>  menos latencia.
-    Así, cuando la carga sube, el lazo lleva u hacia valores negativos, lo
-    que se traduce en MÁS pods.
 """
 
 import math
@@ -28,19 +23,17 @@ from utils import clamp
 DT = 15.0                   # (s)  paso de simulación = T_scrape
 
 ## Proceso (microservicio)
-# tau = t_scrape + t_reconcile + t_coldstart = 15 + 15 + 30 = 60s
 TAU = 60.0                  # (s)  constante de tiempo del proceso
-L0 = 200.0                  # (ms) latencia base con pods nominales y sin carga extra
-K = 10.0                    # (ms/pod) ganancia estática del proceso (acción inversa)
+L0 = 200.0                  # (ms) latencia referencia
+K = 10.0                    # (ms/pod) ganancia estática del proceso
 KD = 0.5                    # (ms·s/req) ganancia de la perturbación
 
 ## Actuador (Kubernetes)
-POD_BASELINE = 4            # réplicas en el punto de operación (u = 0)
 POD_MIN = 1                 # mínimo de réplicas
 POD_MAX = 30                # máximo de réplicas (saturación del actuador)
 
 ## Banda objetivo / condición de falla
-TARGET_BAND = 30.0          # (ms) tolerancia +/- alrededor de L_ref
+TARGET_BAND = 30.0          # (ms) Banda de error aceptable
 
 
 ## Historia (buffer de ploteo)
@@ -65,7 +58,6 @@ class PIController:
     def reset_gains(self, Kp, Ki):
         self.Kp = Kp
         self.Ki = Ki
-        # Al cambiar ganancias se limpia el estado para evitar transitorios bruscos.
         self.integral = 0.0
 
 
@@ -75,7 +67,7 @@ class MicroserviceModel:
 
     def __init__(self):
         self.latency = L0
-        self._prev_u = 0.0
+        self._prev_u = -float(POD_MIN)
         self._prev_load = 0.0
 
     def update(self, u, load):
@@ -89,7 +81,7 @@ class MicroserviceModel:
 
     def reset(self):
         self.latency = L0
-        self._prev_u = 0.0
+        self._prev_u = -float(POD_MIN)
         self._prev_load = 0.0
 
 
@@ -105,16 +97,15 @@ class Simulation:
         self.time = 0.0
 
     def update(self):
-        # 1. Sensor ideal (H = 1): la realimentación es la latencia medida.
         feedback = self.process.latency
         error = self.reference - feedback          # e = L_ref - f  (realim. negativa)
 
         # 2. Controlador PI.
         u, p_term, i_term = self.pid.compute(error)
 
-        # 3. Actuador (Ka = 1) + acción inversa: u -> cantidad de pods.
-        pods = clamp(int(round(POD_BASELINE - u)), POD_MIN, POD_MAX)
-        u_eff = POD_BASELINE - pods                # acción efectivamente aplicada tras saturar
+        # 3. Actuador (Ka = 1): u -> cantidad de pods (cuantos pods me faltan).
+        pods = clamp(int(round(-u)), POD_MIN, POD_MAX)
+        u_eff = -float(pods)               # acción efectivamente aplicada tras saturar
 
         # 4. Proceso: la planta responde a la acción efectiva y a la carga.
         latency = self.process.update(u_eff, self.load)
@@ -127,7 +118,6 @@ class Simulation:
         self.time += DT
         return self.history.get()
 
-    # --- Setters usados por la GUI ---
     def set_reference(self, value):
         self.reference = value
 
