@@ -41,8 +41,8 @@ L_ref ──►(+)──► C(s) ──► A(s) ──────►(+)──�
 | `T_coldstart` | 30 s | Arranque de un pod nuevo |
 | `Kd` | 0.5 ms·s/req | Ganancia de la perturbación de carga |
 | `L0` | 200 ms | Latencia base nominal |
-| `POD_BASELINE` | 4 réplicas | Punto de operación |
 | `POD_MIN / MAX` | 1 / 30 | Límites del actuador (saturación) |
+| `TARGET_BAND` | ±15 ms | Banda de error aceptable alrededor de la referencia |
 
 ### Tipo de sistema y error en estado estable
 
@@ -54,7 +54,7 @@ E_ss = 0
 
 ### Acción inversa
 
-Agregar pods **reduce** la latencia (relación inversa). La inversión se concentra una sola vez en el mapeo `pods = POD_BASELINE − u`, permitiendo que las ecuaciones del proceso mantengan signo positivo y que el lazo cierre con realimentación negativa convencional.
+Agregar pods **reduce** la latencia (relación inversa). La inversión se concentra una sola vez en el mapeo `pods = clamp(round(-u), POD_MIN, POD_MAX)`, permitiendo que las ecuaciones del proceso mantengan signo positivo y que el lazo cierre con realimentación negativa convencional.
 
 ---
 
@@ -62,10 +62,11 @@ Agregar pods **reduce** la latencia (relación inversa). La inversión se concen
 
 ```
 TDC_Escalamiento_pods/
-├── control.py        # Motor de simulación: PIController, MicroserviceModel, Simulation, History
-├── simulacion.py     # Interfaz gráfica (CustomTkinter + Matplotlib)
-├── utils.py          # Utilidades: clamp()
-└── requirements.txt  # Dependencias Python
+├── control.py           # Motor de simulación: PIController, MicroserviceModel, Simulation, History
+├── simulacion.py        # Interfaz gráfica interactiva (CustomTkinter + Matplotlib)
+├── batch_simulacion.py  # Simulación headless por lotes: genera métricas y PNG sin GUI
+├── utils.py             # Utilidades: clamp()
+└── requirements.txt     # Dependencias Python
 ```
 
 ### `control.py`
@@ -79,8 +80,15 @@ Motor del lazo cerrado. Contiene:
 GUI en tiempo real construida con CustomTkinter y Matplotlib embebido. Permite:
 - Ajustar `Kp` y `Ki` con sliders en vivo.
 - Cambiar la referencia de latencia (100–400 ms).
-- Aplicar perturbaciones de carga continuas o en escalón (+20 req/s).
+- Aplicar perturbaciones de carga continuas o en escalón (+30 req/s).
 - Pausar, resetear y guardar el gráfico como PNG al cerrar.
+
+### `batch_simulacion.py`
+Script headless para correr simulaciones sin interfaz gráfica. Útil para generar resultados reproducibles desde la terminal. Permite:
+- Configurar `Kp`, `Ki`, `Lref` y duración total directamente en el código.
+- Definir una lista de eventos de carga `(tiempo_s, carga_req/s)` para modelar perturbaciones.
+- Imprimir métricas por consola: latencia máxima, error en estado estable, sobreimpulso y rango de pods.
+- Guardar el gráfico de 4 paneles como PNG (`simulacion_latencia.png`).
 
 ### `utils.py`
 Funciones auxiliares sin dependencias externas (`clamp`).
@@ -93,7 +101,28 @@ Funciones auxiliares sin dependencias externas (`clamp`).
 
 ```bash
 pip install -r requirements.txt
+```
+
+### Modo interactivo (GUI)
+
+```bash
 python simulacion.py
+```
+
+### Modo batch (sin GUI)
+
+```bash
+python batch_simulacion.py
+```
+
+Editar las constantes al inicio de `main()` para cambiar el escenario:
+
+```python
+KP       = 0.1
+KI       = 0.025
+LREF     = 200.0    # ms
+DURATION = 600.0    # s
+LOAD_EVENTS = [(0, 60)]  # (tiempo_s, carga_req/s)
 ```
 
 ### Dependencias
@@ -109,7 +138,7 @@ python simulacion.py
 
 La ventana se divide en un panel de controles (izquierda) y cuatro gráficos en tiempo real (derecha):
 
-1. **Latencia (ms)** — variable controlada y referencia, con banda de tolerancia ±30 ms sombreada.
+1. **Latencia (ms)** — variable controlada y referencia, con banda de tolerancia ±15 ms sombreada.
 2. **Error (ms)** — diferencia entre referencia y latencia medida.
 3. **Réplicas (pods)** — acción de control del actuador (escalera discreta).
 4. **Carga (req/s)** — perturbación externa aplicada al proceso.
@@ -124,7 +153,7 @@ El panel lateral muestra los valores instantáneos y el estado `EN BANDA / FUERA
 | Slider `Ki` | Ganancia integral (0 – 0.1) |
 | Slider `Referencia` | Latencia objetivo en ms (100 – 400) |
 | Slider `Carga` | Perturbación sostenida en req/s (0 – 300) |
-| Botón `Escalón de carga` | Aplica +20 req/s de perturbación instantánea |
+| Botón `Escalón de carga` | Aplica +30 req/s de perturbación instantánea |
 | Botón `Pausa / Reanudar` | Congela la simulación |
 | Botón `Reset` | Restaura condiciones iniciales |
 | Botón `Cerrar` / `Esc` | Cierra y ofrece guardar PNG |

@@ -85,7 +85,7 @@ class App(ctk.CTk):
         self.create_slider(LOAD_CONFIG, self.on_load_change)
 
         step_btn = ctk.CTkButton(self.controls_frame,
-                                 text="Escalón de carga (+20 req/s)",
+                                 text="Escalón de carga (+30 req/s)",
                                  command=self.inject_load_step)
         step_btn.pack(pady=(15, 5), padx=10, fill="x")
 
@@ -139,7 +139,7 @@ class App(ctk.CTk):
         self.simulation.set_load(value)
 
     def inject_load_step(self):
-        new_load = min(LOAD_CONFIG.max, self.simulation.load + 20.0)
+        new_load = min(LOAD_CONFIG.max, self.simulation.load + 30.0)
         self.simulation.set_load(new_load)
         LOAD_CONFIG.widget.set(new_load)
         LOAD_CONFIG.label.configure(
@@ -187,7 +187,8 @@ class App(ctk.CTk):
         self.line_pods = ax_pods.plot([], [], color="tab:green",
                                       drawstyle="steps-post")[0]
         ax_pods.set_ylabel("Réplicas (pods)")
-        ax_pods.set_ylim(0, model.POD_MAX + 1)
+        ax_pods.set_ylim(1, model.POD_MAX + 1)
+        ax_pods.set_yticks([1] + list(range(5, model.POD_MAX + 1, 5)))
 
         self.line_load = ax_load.plot([], [], color="tab:orange")[0]
         ax_load.set_ylabel("Carga (req/s)")

@@ -33,7 +33,7 @@ POD_MIN = 1                 # mínimo de réplicas
 POD_MAX = 30                # máximo de réplicas (saturación del actuador)
 
 ## Banda objetivo / condición de falla
-TARGET_BAND = 30.0          # (ms) Banda de error aceptable
+TARGET_BAND = 15.0          # (ms) Banda de error aceptable
 
 
 ## Historia (buffer de ploteo)
