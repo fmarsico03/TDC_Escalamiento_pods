@@ -12,12 +12,10 @@ Mapeo con el documento del TFI:
     - Proceso G(s)        : 1er orden, tau*dL/dt + L = L0 + K*u + Kd*d
     - Sensor H(s)         : Prometheus, ideal (H = 1)
 
-ACCIÓN INVERSA (la inversión va UNA sola vez, acá en el mapeo u<->pods):
+ACCIÓN INVERSA:
     Más pods  =>  menos latencia.
-    Se mantiene la ecuación del proceso con +K*u y K>0 (magnitud), y la
-    inversión se concentra en:    pods = POD_BASELINE - u
     Así, cuando la carga sube, el lazo lleva u hacia valores negativos, lo
-    que se traduce en MÁS pods (lo intuitivo), sin duplicar el signo.
+    que se traduce en MÁS pods.
 """
 
 from utils import clamp
@@ -54,12 +52,9 @@ class PIController:
         self.Ki = Ki
         self.integral = 0.0
 
-    def compute(self, error, allow_integration=True):
-        """Devuelve (u, termino_P, termino_I). El integrador SÍ acumula
-        (a diferencia del repo original, que lo sobreescribía y por eso no
-        tenía acción integral real => no garantizaba e_ss = 0)."""
-        if allow_integration:
-            self.integral += error * DT
+    def compute(self, error):
+        """Devuelve (u, termino_P, termino_I)."""
+        self.integral += error * DT
         p_term = self.Kp * error
         i_term = self.Ki * self.integral
         return p_term + i_term, p_term, i_term
@@ -103,13 +98,8 @@ class Simulation:
         feedback = self.process.latency
         error = self.reference - feedback          # e = L_ref - f  (realim. negativa)
 
-        # 2. Controlador PI con anti-windup por integración condicional:
-        #    se integra solo si el actuador no está saturado en esa dirección.
-        u_test, _, _ = self.pid.compute(error, allow_integration=False)
-        pods_test = POD_BASELINE - u_test
-        will_saturate = pods_test < POD_MIN or pods_test > POD_MAX
-
-        u, p_term, i_term = self.pid.compute(error, allow_integration=not will_saturate)
+        # 2. Controlador PI.
+        u, p_term, i_term = self.pid.compute(error)
 
         # 3. Actuador (Ka = 1) + acción inversa: u -> cantidad de pods.
         pods = int(round(POD_BASELINE - u))
