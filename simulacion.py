@@ -22,8 +22,8 @@ import control as model
 
 # --- Constantes de interfaz ---
 SCAN_MS = 50                # cada cuánto refresca la pantalla (ms)
-STEPS_PER_FRAME = 5         # pasos de simulación por refresco (acelera la vista)
-VISIBLE_SECONDS = 300       # ventana temporal visible (5τ = 300s para ver el transitorio completo)
+STEPS_PER_FRAME = 1         # 1 paso = 1 T_scrape = 15s de simulación por refresco
+VISIBLE_SECONDS = 600       # ventana temporal visible (10τ para ver el transitorio completo)
 
 
 class SliderConfig:

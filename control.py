@@ -18,12 +18,14 @@ ACCIÓN INVERSA:
     que se traduce en MÁS pods.
 """
 
+import math
+
 from utils import clamp
 
 # --- Constantes ---
 
 ## Paso de integración
-DT = 0.1                    # (s)  paso de tiempo virtual por ciclo
+DT = 15.0                   # (s)  paso de simulación = T_scrape
 
 ## Proceso (microservicio)
 # tau = t_scrape + t_reconcile + t_coldstart = 15 + 15 + 30 = 60s
@@ -35,13 +37,14 @@ KD = 0.5                    # (ms·s/req) ganancia de la perturbación
 ## Actuador (Kubernetes)
 POD_BASELINE = 4            # réplicas en el punto de operación (u = 0)
 POD_MIN = 1                 # mínimo de réplicas
-POD_MAX = 50                # máximo de réplicas (saturación del actuador)
+POD_MAX = 30                # máximo de réplicas (saturación del actuador)
 
 ## Banda objetivo / condición de falla
 TARGET_BAND = 30.0          # (ms) tolerancia +/- alrededor de L_ref
 
+
 ## Historia (buffer de ploteo)
-POINTS_OF_HISTORY = 2000
+POINTS_OF_HISTORY = 400
 
 
 class PIController:
@@ -67,19 +70,27 @@ class PIController:
 
 
 class MicroserviceModel:
-    """Proceso de primer orden:  tau*dL/dt + L = L0 + K*u + Kd*d."""
+    """Proceso de primer orden (ZOH a T_scrape):
+    L[k] = L[k-1] + K·Δu·(1-e^(-T_scrape/τ)) + Kd·Δd·(1-e^(-T_scrape/τ))"""
 
     def __init__(self):
-        self.latency = L0       # (ms) estado: latencia actual
+        self.latency = L0
+        self._prev_u = 0.0
+        self._prev_load = 0.0
 
     def update(self, u, load):
-        # Euler hacia adelante (válido porque tau >> DT)
-        dL = (L0 + K * u + KD * load - self.latency) / TAU
-        self.latency += dL * DT
+        factor = 1.0 - math.exp(-DT / TAU)
+        delta_u = u - self._prev_u
+        delta_d = load - self._prev_load
+        self.latency += (K * delta_u + KD * delta_d) * factor
+        self._prev_u = u
+        self._prev_load = load
         return self.latency
 
     def reset(self):
         self.latency = L0
+        self._prev_u = 0.0
+        self._prev_load = 0.0
 
 
 class Simulation:
@@ -102,8 +113,7 @@ class Simulation:
         u, p_term, i_term = self.pid.compute(error)
 
         # 3. Actuador (Ka = 1) + acción inversa: u -> cantidad de pods.
-        pods = int(round(POD_BASELINE - u))
-        pods = clamp(pods, POD_MIN, POD_MAX)
+        pods = clamp(int(round(POD_BASELINE - u)), POD_MIN, POD_MAX)
         u_eff = POD_BASELINE - pods                # acción efectivamente aplicada tras saturar
 
         # 4. Proceso: la planta responde a la acción efectiva y a la carga.
